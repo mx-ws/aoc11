@@ -1,7 +1,8 @@
 import Data.Map as Map
 import Control.Monad.State.Lazy
 import Data.Maybe
-import Data.List (sort)
+import Data.List
+import Data.Char (digitToInt)
 
 data Monkey = Monkey {
     test :: Int,
@@ -39,15 +40,64 @@ thisMonkeyTurn item = do
     put s
     put $ MonS w m t
 
-parseMonkeys :: String -> MonS
+parseMonkeys :: State String MonS
 parseMonkeys = undefined
+-- parseMonkeys = do
+--     n <- monkeyNumber
+--     items <- startingItems
+--     test 
+
+monkeyNumber :: State String Int
+monkeyNumber = do
+    s <- get
+    let (l, _:ls) = break (== '\n') s
+        n = digitToInt $ l !! 7
+    put ls
+    return n
+
+startingItems :: State String [Int]
+startingItems = do
+    s <- get
+    let (l, _:ls) = break (== '\n') s
+    put ls
+    return $ read $ "[" ++ Data.List.drop 16 l ++ "]"
+
+opP :: State String (Int -> Int)
+opP = do
+    s <- get
+    let (l, _:ls) = break (== '\n') s
+    put ls
+    let opString = Data.List.drop 19 l
+        (first, _:r) = break (==' ') opString
+        (operation, _:second) = break (== ' ') r
+    return (\x ->
+        let a = if first == "old" then x else read first
+            b = if second == "old" then x else read second
+            op = if operation == "*" then (*) else (+)
+        in
+            op a b)
+
+
+testW :: State String Int
+testW = do
+    s <- get
+    let (l, _:ls) = break (== '\n') s
+    put ls
+    return $ read $ Data.List.drop 19 l
+
+throwTo :: State String Int
+throwTo = do
+    s <- get
+    let (l, _:ls) = break (== '\n') s 
+    put ls
+    return $ digitToInt $ last l
 
 monkeyBusiness:: Map Int Monkey -> Int
 monkeyBusiness mM = (\(a:b:bs) -> a*b) $ sort $ elems $ fmap (inspections) mM
 
 main = do
     input <- readFile("in")
-    let s = parseMonkeys input
+    let s = runState parseMonkeys input
     --     monS = execState (forM_ [1..20] $ const monRound) s
     -- putStrLn $ show $ monkeyBusiness $ monkeys $ monS
     putStrLn $ show $ 5
