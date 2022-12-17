@@ -1,3 +1,5 @@
 main.hi
 main.o
 main
+.stack-work/
+dist-newstyle/

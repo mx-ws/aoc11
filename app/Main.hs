@@ -3,6 +3,7 @@ import Control.Monad.State.Lazy
 import Data.Maybe
 import Data.List
 import Data.Char (digitToInt)
+import Data.Euclidean
 
 data Monkey = Monkey {
     op :: Int -> Int,
@@ -62,6 +63,12 @@ thisMonkeyTurn item = do
     put s
     put $ MonS m t
 
+
+-- Restklassen
+
+
+ggT :: Int -> Int -> (Int, Int, Int)
+ggT a b = undefined
 
 -- parsing
 
