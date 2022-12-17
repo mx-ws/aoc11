@@ -28,7 +28,7 @@ data ModMonkey = ModMonkey {
 instance Show ModMonkey where
     show m = show $ fmap show $ items m
 
-type Worry = Map Int Int
+type Worry = Map Int (Int, Int)
 
 data MonS = MonS {
     monkeys :: Map Int ModMonkey,
@@ -42,6 +42,24 @@ data IntMonS = IntMonS {
     iMonkeys :: Map Int IntMonkey,
     iTurn :: Int
 }
+
+takeItem :: State MonS (Worry, Int, Int -> Int)
+takeItem = do
+    s <- get
+    let t = turn s
+        ms = monkeys s
+        m = fromJust $ Map.lookup t $ ms
+        (i:is) = items m
+        u = if is == [] then ((t + 1) `mod` (size ms)) else t
+    put $ MonS (Map.insert t (ModMonkey is $ ((monkey m) { inspections = (inspections $ monkey m) + 1})) ms) u
+    return (i, test $ monkey m, op $ monkey m)
+
+throwItem :: State MonS ()
+-- throwItem = undefined
+throwItem = do
+    (i, t, f) <- takeItem
+    let i' = 
+
 
 monRound :: State MonS [()]
 monRound = undefined
@@ -66,9 +84,8 @@ thisMonkeyTurn item = do
 
 -- Restklassen
 
-
-ggT :: Int -> Int -> (Int, Int, Int)
-ggT a b = undefined
+divBy3 :: Int -> (Int, Int) -> (Int, Int)
+divBy3 mod3 (l, n) = ((l - mod3) * n, n)
 
 -- parsing
 
@@ -80,11 +97,11 @@ parseMonS = do
         modMonkeys = fmap (intToModMonkey tests) ms
     return $ MonS modMonkeys 0
 
-
 intToModItem :: [Int] -> Int -> Worry
-intToModItem [] _ = Map.empty
-intToModItem (x:xs) n = let w = intToModItem xs n in
-    Map.insert x (n `mod` x) w
+intToModItem [] n = Map.singleton 3 (n `mod` 3, undefined)
+intToModItem (x:xs) n = let w = intToModItem xs n
+                            (_, inv3) = gcdExt 3 x in
+    Map.insert x (n `mod` x, inv3) w
 
 intToModMonkey :: [Int] -> IntMonkey -> ModMonkey
 intToModMonkey l m = ModMonkey (fmap (intToModItem l) $ iItems m) $ iMonkey m
@@ -179,4 +196,3 @@ main = do
     -- putStrLn $ show $ monkeyBusiness $ monkeys $ monS
     putStrLn $ show $ s
     -- putStrLn "end"
-    return s
