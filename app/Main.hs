@@ -32,7 +32,9 @@ type Worry = Map Int (Int, Int)
 
 data MonS = MonS {
     monkeys :: Map Int ModMonkey,
-    turn :: Int
+    turn :: Int,
+    monRound :: Int
+    -- sizeM :: Int
 } deriving Show
 
 -- instance Show MonS where
@@ -47,20 +49,25 @@ takeItem :: State MonS (Worry, Monkey)
 takeItem = do
     s <- get
     let t = turn s
+        r = monRound s
         ms = monkeys s
         m = fromJust $ Map.lookup t $ ms
         (i:is) = items m
-        u = if is == [] then ((t + 1) `mod` (size ms)) else t
-    put $ MonS (Map.insert t (ModMonkey is $ ((monkey m) { inspections = (inspections $ monkey m) + 1})) ms) u
+        (u,r') = if is == [] then ((t + 1) `nextTurn` (size ms)) r else (t, r)
+    put $ MonS (Map.insert t (ModMonkey is $ ((monkey m) { inspections = (inspections $ monkey m) + 1})) ms) u r'
     return (i, monkey m)
+
+nextTurn :: Int -> Int -> Int -> (Int, Int)
+nextTurn turn size r = let turnMod = turn `mod` size in
+    if turnMod == turn then (turn, r) else (turnMod, r+1)
 
 throwItem :: State MonS ()
 -- throwItem = undefined
 throwItem = do
     (i, m) <- takeItem
-    -- i' = op auf i anwenden
     let t = test m
         f = op m
+    -- i' = op auf i anwenden
         i' = mapWithKey (\k (x,n) -> ((f x) `mod` k,n)) i
     -- i'' = div3 auf auf i' anwenden
         i'' = mapWithKey divBy3 i'
@@ -68,20 +75,30 @@ throwItem = do
         nextM = case fromJust $ Map.lookup t i'' of
             (0,_)   -> throw m True
             _       -> throw m False
-        
+    s <- get
+    let oldMonkey = fromJust $ Map.lookup nextM $ monkeys s
+        oldMonkeyItems = items oldMonkey
+        newMonkeys = Map.insert nextM (oldMonkey {items = oldMonkeyItems ++ [i'']}) $ monkeys s
+    put $ MonS (newMonkeys) (turn s) $ monRound s
+
     -- entsprechendem affen i'' ans ende der liste packen
     return ()
 
-monRound :: State MonS [()]
-monRound = undefined
--- monRound = do
---     s <- get
---     sequence
---         $ fmap (thisMonkeyTurn)
---         $ (items
---             $ fromJust
---             $ Map.lookup (turn s)
---             $ monkeys s)
+untilRound :: Int -> State MonS ()
+untilRound maxRound = do
+    s' <- get
+    let t = turn s'
+        r = monRound s'
+        ms = monkeys s'
+        m = fromJust $ Map.lookup t $ ms
+    if items m == [] then do
+        let (u, r') = ((t + 1) `nextTurn` (size ms)) r
+        put $ s' { turn = u, monRound = r'}
+    else do
+        throwItem
+    s <- get
+    if monRound s <= maxRound then untilRound maxRound else return ()
+
 
 -- TODO
 thisMonkeyTurn :: Int -> State MonS ()
@@ -90,7 +107,7 @@ thisMonkeyTurn item = do
     let m = Map.empty
         t = (turn s + 1 `mod` ((size $ monkeys s) - 1))
     put s
-    put $ MonS m t
+    put $ MonS m t (monRound s)
 
 
 -- Restklassen
@@ -106,7 +123,7 @@ parseMonS = do
     ms <- parseMonkeys Map.empty
     let tests = Map.elems $ fmap (test.iMonkey) ms
         modMonkeys = fmap (intToModMonkey tests) ms
-    return $ MonS modMonkeys 0
+    return $ MonS modMonkeys 0 0
 
 intToModItem :: [Int] -> Int -> Worry
 intToModItem [] n = Map.singleton 3 (n `mod` 3, undefined)
@@ -201,9 +218,10 @@ monkeyBusiness mM = (\(a:b:bs) -> a*b) $ sort $ elems $ fmap (inspections) mM
 
 main = do
     input <- readFile("in")
-    let s = evalState parseMonS input
+    let monS = evalState parseMonS input
+        monSFinal = execState (untilRound 21) monS
+        mB = monkeyBusiness $ fmap monkey $ monkeys monSFinal
     -- let s = evalState (parseMonkey Map.empty) input
     --     monS = execState (forM_ [1..20] $ const monRound) s
     -- putStrLn $ show $ monkeyBusiness $ monkeys $ monS
-    putStrLn $ show $ s
-    -- putStrLn "end"
+    putStrLn $ show $ mB
