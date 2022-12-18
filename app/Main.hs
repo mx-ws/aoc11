@@ -43,7 +43,7 @@ data IntMonS = IntMonS {
     iTurn :: Int
 }
 
-takeItem :: State MonS (Worry, Int, Int -> Int)
+takeItem :: State MonS (Worry, Monkey)
 takeItem = do
     s <- get
     let t = turn s
@@ -52,14 +52,25 @@ takeItem = do
         (i:is) = items m
         u = if is == [] then ((t + 1) `mod` (size ms)) else t
     put $ MonS (Map.insert t (ModMonkey is $ ((monkey m) { inspections = (inspections $ monkey m) + 1})) ms) u
-    return (i, test $ monkey m, op $ monkey m)
+    return (i, monkey m)
 
 throwItem :: State MonS ()
 -- throwItem = undefined
 throwItem = do
-    (i, t, f) <- takeItem
-    let i' = 
-
+    (i, m) <- takeItem
+    -- i' = op auf i anwenden
+    let t = test m
+        f = op m
+        i' = mapWithKey (\k (x,n) -> ((f x) `mod` k,n)) i
+    -- i'' = div3 auf auf i' anwenden
+        i'' = mapWithKey divBy3 i'
+    -- i'' testen und throw auf Ergebnis anwenden.
+        nextM = case fromJust $ Map.lookup t i'' of
+            (0,_)   -> throw m True
+            _       -> throw m False
+        
+    -- entsprechendem affen i'' ans ende der liste packen
+    return ()
 
 monRound :: State MonS [()]
 monRound = undefined
